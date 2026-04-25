@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casa à Vista vs Consórcio — Simulador Interativo</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --accent: #6c5ce7;
+    --accent2: #00cec9;
+    --red: #ff6b6b;
+    --green: #00b894;
+    --yellow: #fdcb6e;
+    --text: #dfe6e9;
+    --muted: #888ea8;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; line-height:1.6; }
+  .container { max-width:1100px; margin:0 auto; padding:20px; }
+
+  header { text-align:center; padding:40px 20px 20px; }
+  header h1 { font-size:1.8rem; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  header p { color:var(--muted); margin-top:8px; font-size:.95rem; max-width:600px; margin-inline:auto; }
+
+  /* Pipeline */
+  .pipeline { display:flex; align-items:center; justify-content:center; gap:0; margin:30px auto; flex-wrap:wrap; }
+  .pipe-step { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 20px; text-align:center; min-width:140px; position:relative; transition:transform .2s,border-color .2s; cursor:default; }
+  .pipe-step:hover { transform:translateY(-3px); border-color:var(--accent); }
+  .pipe-step .icon { font-size:1.6rem; }
+  .pipe-step .label { font-size:.78rem; color:var(--muted); margin-top:4px; }
+  .pipe-step .value { font-weight:700; font-size:1.05rem; margin-top:2px; }
+  .pipe-arrow { font-size:1.4rem; color:var(--muted); padding:0 6px; }
+
+  /* Cards grid */
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:30px; }
+  @media(max-width:700px){ .grid{grid-template-columns:1fr;} .pipeline{gap:8px;} .pipe-arrow{display:none;} }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; }
+  .card h2 { font-size:1.1rem; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .card h2 .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+
+  /* Inputs */
+  .inputs { display:flex; flex-wrap:wrap; gap:14px; margin:30px 0; justify-content:center; }
+  .input-group { display:flex; flex-direction:column; gap:4px; }
+  .input-group label { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .input-group input { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text); font-size:.95rem; width:160px; outline:none; transition:border-color .2s; }
+  .input-group input:focus { border-color:var(--accent); }
+
+  /* Result banner */
+  .result-banner { margin-top:24px; padding:20px; border-radius:14px; text-align:center; font-size:1rem; }
+  .result-banner.vista { background:rgba(0,184,148,.12); border:1px solid var(--green); }
+  .result-banner.consorcio { background:rgba(108,92,231,.12); border:1px solid var(--accent); }
+  .result-banner strong { font-size:1.3rem; display:block; margin-bottom:6px; }
+
+  /* Chart containers */
+  .chart-wrap { position:relative; height:280px; margin-top:10px; }
+
+  /* Transcript */
+  .transcript { margin-top:30px; }
+  .transcript details { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; }
+  .transcript summary { cursor:pointer; font-weight:600; color:var(--accent2); }
+  .transcript p { margin-top:12px; font-size:.88rem; color:var(--muted); line-height:1.8; }
+
+  /* Footer */
+  footer { text-align:center; padding:30px; color:var(--muted); font-size:.78rem; }
+  footer a { color:var(--accent2); text-decoration:none; }
+
+  /* Tooltip overrides */
+  .tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:.72rem; font-weight:600; text-transform:uppercase; }
+  .tag-green { background:rgba(0,184,148,.18); color:var(--green); }
+  .tag-red { background:rgba(255,107,107,.18); color:var(--red); }
+  .tag-yellow { background:rgba(253,203,110,.18); color:var(--yellow); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏠 Casa à Vista vs Consórcio</h1>
+  <p>Simulador interativo baseado na análise viral sobre comprar casa com R$400k. Ajuste os valores e veja a matemática real.</p>
+</header>
+
+<div class="container">
+
+  <!-- Inputs -->
+  <div class="inputs">
+    <div class="input-group">
+      <label>💰 Capital Disponível</label>
+      <input type="text" id="inCapital" value="400000">
+    </div>
+    <div class="input-group">
+      <label>🏠 Valor do Imóvel</label>
+      <input type="text" id="inImovel" value="400000">
+    </div>
+    <div class="input-group">
+      <label>📄 Carta de Crédito</label>
+      <input type="text" id="inCarta" value="550000">
+    </div>
+    <div class="input-group">
+      <label>📈 CDB Líquido % a.m.</label>
+      <input type="text" id="inCdb" value="0.85">
+    </div>
+    <div class="input-group">
+      <label>🏷️ Aluguel Mensal</label>
+      <input type="text" id="inAluguel" value="2000">
+    </div>
+    <div class="input-group">
+      <label>⏱️ Meses até Contemplação</label>
+      <input type="text" id="inMeses" value="24">
+    </div>
+  </div>
+
+  <!-- Pipeline -->
+  <div class="pipeline" id="pipeline"></div>
+
+  <!-- Charts grid -->
+  <div class="grid">
+    <div class="card">
+      <h2><span class="dot" style="background:var(--green)"></span> Patrimônio ao Longo do Tempo</h2>
+      <div class="chart-wrap"><canvas id="chartPatrimonio"></canvas></div>
+    </div>
+    <div class="card">
+      <h2><span class="dot" style="background:var(--accent)"></span> Custos Acumulados — Consórcio</h2>
+      <div class="chart-wrap"><canvas id="chartCustos"></canvas></div>
+    </div>
+    <div class="card">
+      <h2><span class="dot" style="background:var(--yellow)"></span> Rentabilidade CDB vs Selic (Projeção)</h2>
+      <div class="chart-wrap"><canvas id="chartRent"></canvas></div>
+    </div>
+    <div class="card">
+      <h2><span class="dot" style="background:var(--red)"></span> Comparativo Final</h2>
+      <div class="chart-wrap"><canvas id="chartCompare"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Result banner -->
+  <div class="result-banner" id="resultBanner"></div>
+
+  <!-- Transcript -->
+  <div class="transcript">
+    <details>
+      <summary>📝 Transcrição completa do vídeo</summary>
+      <p id="transcriptText"></p>
+    </details>
+  </div>
+
+</div>
+
+<footer>
+  Feito com 🦞 por <a href="https://github.com/maykbritooo" target="_blank">Maky</a> — Simulador educacional, não é conselho financeiro.
+</footer>
+
+<script>
+const transcript = `Eu tenho 400.000. Eu compro uma casa à vista ou com consórcio? — À vista, nem pensar. Será mesmo? Vamos dar uma olhada.
+
+Os R$400.000 à vista que você tem, você vai dividir em duas partes. R$200.000 você vai aplicar no CDB a 1%, vai te dar R$2.000 ao mês.
+
+Olha só, hoje com a Selic a 14,75%, nenhum CDB vai te dar 1% líquido, porque você vai ter que descontar o imposto de renda (22,5% nos seis primeiros meses). A rentabilidade líquida fica abaixo de 0,9% ao mês. Sem contar que a Selic ainda vai cair — essa é a projeção. A rentabilidade vai ficar cada vez menor.
+
+Você vai fazer uma carta de crédito de R$550.000. Vai dar de lance R$200.000 de recurso próprio + R$150.000 de lance embutido (usando o valor da carta). Total: R$350.000 de lance livre.
+
+O lance embutido é quando você usa o valor da carta — esse valor é descontado do crédito recebido e abatido integralmente do saldo devedor.
+
+Contemplou, você tem R$400.000 para comprar sua casa. Prestação pós-contemplação: R$700. Saiu de R$400.000 para R$400.000 com prestação zerada e ainda mantém R$200.000 no banco.
+
+PORÉM — os R$350.000 representam um lance de 63% do valor da carta. Hoje a maior parte dos grupos começa com lances livres em 70%. Ou seja, você NÃO vai ser contemplado da noite pro dia. Pode demorar meses ou até anos.
+
+E tem um detalhe que muda completamente a conta: ele falou que vão entrar R$400.000, mas se a carta é R$550.000 e você deu R$350.000 de lance, o valor que entra no bolso é R$200.000, não R$400.000.
+
+Fora que você teve que continuar pagando aluguel até comprar a casa, e as parcelas são reajustadas anualmente pelo INCC.
+
+O consórcio é frequentemente oferecido com promessa milagrosa, mas pode ser uma forma excelente de alavancar patrimônio — com tempo, planejamento e transparência. Educação financeira salva vidas.`;
+
+document.getElementById('transcriptText').textContent = transcript;
+
+// --- Helpers ---
+const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+const getV = id => parseFloat(document.getElementById(id).value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+
+let charts = {};
+
+function buildPipeline(capital, investido, lanceRP, lanceEmb, lanceTotal, cartaVal) {
+  const pct = ((lanceTotal / cartaVal) * 100).toFixed(0);
+  const color = pct >= 70 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('pipeline').innerHTML = `
+    <div class="pipe-step"><div class="icon">💰</div><div class="value">${fmt(capital)}</div><div class="label">Capital Total</div></div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step"><div class="icon">📊</div><div class="value">${fmt(investido)}</div><div class="label">Aplicado CDB</div></div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step"><div class="icon">🎯</div><div class="value">${fmt(lanceRP)}</div><div class="label">Lance Recurso Próprio</div></div>
+    <span class="pipe-arrow">+</span>
+    <div class="pipe-step"><div class="icon">📄</div><div class="value">${fmt(lanceEmb)}</div><div class="label">Lance Embutido</div></div>
+    <span class="pipe-arrow">=</span>
+    <div class="pipe-step"><div class="icon">🔑</div><div class="value">${fmt(lanceTotal)}</div><div class="label">Lance Total</div></div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" style="border-color:${color}"><div class="icon">📈</div><div class="value" style="color:${color}">${pct}%</div><div class="label">% da Carta</div></div>
+  `;
+}
+
+function simulate() {
+  const capital = getV('inCapital');
+  const imovel = getV('inImovel');
+  const carta = getV('inCarta');
+  const cdbRate = getV('inCdb') / 100;
+  const aluguel = getV('inAluguel');
+  const mesesCont = Math.max(1, Math.round(getV('inMeses')));
+
+  const investido = capital / 2;
+  const lanceRP = capital - investido;
+  const lanceEmb = carta > lanceRP ? Math.min(carta - lanceRP, carta * 0.3) : 0;
+  const lanceTotal = lanceRP + lanceEmb;
+
+  buildPipeline(capital, investido, lanceRP, lanceEmb, lanceTotal, carta);
+
+  // --- Patrimônio over time ---
+  const months = 60;
+  const labels = Array.from({length:months+1},(_,i)=>`M${i}`);
+  const patVista = []; // bought immediately
+  const patCons = [];
+  let saldoCDB = investido;
+  let aluguelAcum = 0;
+  let parcelaCons = carta * 0.004; // ~0.4% taxa adm média
+  let parcelasAcum = 0;
+  const inccAnual = 0.06;
+
+  for (let m = 0; m <= months; m++) {
+    // À vista: tem o imóvel desde M0
+    patVista.push(imovel);
+    // Consórcio
+    if (m < mesesCont) {
+      // Ainda não contemplou
+      saldoCDB *= (1 + cdbRate);
+      aluguelAcum += aluguel;
+      parcelasAcum += parcelaCons;
+      if (m > 0 && m % 12 === 0) parcelaCons *= (1 + inccAnual);
+      const creditoLiquido = carta - lanceTotal;
+      patCons.push(saldoCDB - aluguelAcum - parcelasAcum);
+    } else {
+      // Contemplou
+      if (m === mesesCont) {
+        // Rendimento do CDB parou (usou pra comprar)
+      }
+      saldoCDB *= (1 + cdbRate * 0.3); // rendimento menor pós
+      const residual = 700; // parcela pós contemplação
+      parcelasAcum += residual;
+      if (m > 0 && m % 12 === 0) parcelaCons *= (1 + inccAnual);
+      patCons.push(imovel + saldoCDB - parcelasAcum - aluguelAcum);
+    }
+  }
+
+  // Chart 1: Patrimônio
+  updateChart('chartPatrimonio', {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'À Vista', data: patVista, borderColor: '#00b894', backgroundColor: 'rgba(0,184,148,.1)', fill: true, tension: .3 },
+        { label: 'Consórcio', data: patCons, borderColor: '#6c5ce7', backgroundColor: 'rgba(108,92,231,.1)', fill: true, tension: .3 }
+      ]
+    }
+  });
+
+  // Chart 2: Custos acumulados consórcio
+  const custAluguel = [], custParcela = [], custTotal = [];
+  let aA = 0, pA = 0, pc2 = carta * 0.004;
+  for (let m = 0; m <= months; m++) {
+    if (m < mesesCont) { aA += aluguel; pA += pc2; if (m>0&&m%12===0) pc2*=(1+inccAnual); }
+    else { pA += 700; }
+    custAluguel.push(aA); custParcela.push(pA); custTotal.push(aA + pA);
+  }
+  updateChart('chartCustos', {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Aluguel', data: custAluguel, borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,.1)', fill: true, tension: .3 },
+        { label: 'Parcelas', data: custParcela, borderColor: '#fdcb6e', backgroundColor: 'rgba(253,203,110,.1)', fill: true, tension: .3 },
+        { label: 'Total', data: custTotal, borderColor: '#e17055', borderDash:[5,5], fill: false, tension: .3 }
+      ]
+    }
+  });
+
+  // Chart 3: CDB vs Selic projection
+  const selicStart = 14.75;
+  const selicProjected = [14.75, 14.25, 13.75, 13.00, 12.50, 12.00];
+  const cdbLabels = ['Hoje','6m','12m','18m','24m','30m'];
+  const cdbLiq = selicProjected.map(s => {
+    const bruto = s / 12;
+    return +(bruto * (1 - 0.175)).toFixed(3); // 17.5% avg IR
+  });
+  const selicMonth = selicProjected.map(s => +(s/12).toFixed(3));
+  updateChart('chartRent', {
+    type: 'bar',
+    data: {
+      labels: cdbLabels,
+      datasets: [
+        { label: 'Selic % a.m.', data: selicMonth, backgroundColor: 'rgba(253,203,110,.6)', borderRadius: 6 },
+        { label: 'CDB Líquido % a.m.', data: cdbLiq, backgroundColor: 'rgba(0,206,201,.6)', borderRadius: 6 }
+      ]
+    },
+    options: { plugins: { legend: { labels: { color: '#dfe6e9' } } }, scales: { y: { ticks: { color:'#888ea8', callback: v=>v+'%' }, grid:{color:'#2a2d3a'} }, x: { ticks:{color:'#888ea8'}, grid:{color:'#2a2d3a'} } } }
+  });
+
+  // Chart 4: Comparativo final (bar)
+  const rendCDB = investido * ((1+cdbRate)**mesesCont - 1);
+  const custoAluguelTotal = aluguel * mesesCont;
+  const custoParcelasTotal = (carta * 0.004) * mesesCont;
+  const creditoReal = carta - lanceTotal;
+  updateChart('chartCompare', {
+    type: 'bar',
+    data: {
+      labels: ['Rendimento CDB','Custo Aluguel','Custo Parcelas','Crédito Real','Imóvel à Vista'],
+      datasets: [{
+        label: 'Valores (R$)',
+        data: [rendCDB, -custoAluguelTotal, -custoParcelasTotal, creditoReal, imovel],
+        backgroundColor: [
+          'rgba(0,206,201,.7)',
+          'rgba(255,107,107,.7)',
+          'rgba(253,203,110,.7)',
+          'rgba(108,92,231,.7)',
+          'rgba(0,184,148,.7)'
+        ],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { color:'#888ea8', callback: v => fmt(v) }, grid:{color:'#2a2d3a'} }, y: { ticks:{color:'#dfe6e9'}, grid:{color:'#2a2d3a'} } }
+    }
+  });
+
+  // Result banner
+  const banner = document.getElementById('resultBanner');
+  const ganhoConsorcio = rendCDB - custoAluguelTotal - custoParcelasTotal;
+  if (ganhoConsorcio > 0) {
+    banner.className = 'result-banner consorcio';
+    banner.innerHTML = `<strong>📊 Consórcio pode valer a pena</strong>Ganho líquido estimado: ${fmt(ganhoConsorcio)} após ${mesesCont} meses<br><span class="tag tag-yellow">⚠️ Mas depende da contemplação — sem garantia de prazo!</span>`;
+  } else {
+    banner.className = 'result-banner vista';
+    banner.innerHTML = `<strong>🏠 Comprar à vista é mais vantajoso</strong>Diferença: ${fmt(Math.abs(ganhoConsorcio))} a favor da compra à vista<br><span class="tag tag-green">✅ Sem risco de espera, sem aluguel, sem INCC</span>`;
+  }
+}
+
+function updateChart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  const defaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#dfe6e9', font:{size:11} } } },
+    scales: {
+      y: { ticks:{color:'#888ea8', callback: v => { if(Math.abs(v)>=1000) return fmt(v); return v; }}, grid:{color:'#2a2d3a'} },
+      x: { ticks:{color:'#888ea8'}, grid:{color:'#2a2d3a'} }
+    }
+  };
+  config.options = { ...defaults, ...config.options };
+  charts[id] = new Chart(ctx, config);
+}
+
+// Listen to input changes
+document.querySelectorAll('.input-group input').forEach(el => {
+  el.addEventListener('input', simulate);
+});
+
+simulate();
+</script>
+</body>
+</html>
